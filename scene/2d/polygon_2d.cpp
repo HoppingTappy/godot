@@ -361,13 +361,30 @@ void Polygon2D::_notification(int p_what) {
 			bool has_uv = uvs.size() == points.size();
 			bool has_color = colors.size() == points.size();
 			bool has_bones = skeleton_node != nullptr;
-
+#ifdef WEB_ENABLED
+			// インデックス配列のハッシュ値を計算（memcmpより高速）
+			uint32_t current_index_hash = 0;
+			if (index_array.size() > 0) {
+				current_index_hash = hash_murmur3_buffer(
+					index_array.ptr(), 
+					index_array.size() * sizeof(int)
+				);
+			}
+			bool index_changed = (current_index_hash != last_index_hash);
+#endif
 			bool needs_clear = len != last_len;
 			needs_clear |= index_array.size() != last_index_count;
 			needs_clear |= has_uv != last_has_uv;
 			needs_clear |= has_color != last_has_color;
 			needs_clear |= has_bones || has_bones != last_has_bones;
 
+#ifdef WEB_ENABLED
+			// WebGLのインデックスバッファキャッシュバグ対策:
+			// 凸?凹などの変形で「三角形の割り方（インデックス構造）」が変わったフレームだけメッシュをリセットする
+			needs_clear |= index_changed;
+#endif
+
+			// ★★★ ここを追加（積層バグの解消） ★★★
 			if (needs_clear) {
 				RS::get_singleton()->mesh_clear(mesh);
 			}
@@ -431,7 +448,9 @@ void Polygon2D::_notification(int p_what) {
 			last_has_uv = has_uv;
 			last_has_color = has_color;
 			last_has_bones = has_bones;
-
+#ifdef WEB_ENABLED
+			last_index_hash = current_index_hash; // ハッシュ値を記憶
+#endif
 			RS::get_singleton()->canvas_item_add_mesh(get_canvas_item(), mesh, Transform2D(), Color(1, 1, 1), texture.is_valid() ? texture->get_scaled_rid() : RID());
 		} break;
 	}

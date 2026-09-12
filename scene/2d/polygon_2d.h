@@ -79,6 +79,7 @@ class Polygon2D : public Node2D {
 	bool last_has_uv = false;
 	bool last_has_color = false;
 	bool last_has_bones = false;
+	uint32_t last_index_hash;
 
 protected:
 	void _notification(int p_what);
